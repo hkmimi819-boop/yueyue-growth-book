@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f9fc">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>岳岳的成长记录本</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-deco">☁️</div>
+      <h1 class="title">岳岳的成长记录本</h1>
+      <p class="subtitle">0〜6个月 · 每一天都值得珍藏</p>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="growth" role="tab" aria-selected="true">
+        <span class="tab-icon">📏</span>
+        <span class="tab-label">身高体重</span>
+      </button>
+      <button class="tab" data-tab="feeding" role="tab">
+        <span class="tab-icon">🍼</span>
+        <span class="tab-label">喂奶</span>
+      </button>
+      <button class="tab" data-tab="milestones" role="tab">
+        <span class="tab-icon">⭐</span>
+        <span class="tab-label">里程碑</span>
+      </button>
+      <button class="tab" data-tab="diary" role="tab">
+        <span class="tab-icon">💕</span>
+        <span class="tab-label">心情日记</span>
+      </button>
+    </nav>
+
+    <main class="content">
+      <!-- 身高体重 -->
+      <section id="panel-growth" class="panel active" role="tabpanel">
+        <div class="card form-card">
+          <h2 class="card-title">记录测量</h2>
+          <form id="growth-form" class="form">
+            <label class="field">
+              <span>日期</span>
+              <input type="date" id="growth-date" required>
+            </label>
+            <div class="field-row">
+              <label class="field">
+                <span>身高 (cm)</span>
+                <input type="number" id="growth-height" step="0.1" min="30" max="80" placeholder="如 52.5" required>
+              </label>
+              <label class="field">
+                <span>体重 (kg)</span>
+                <input type="number" id="growth-weight" step="0.01" min="2" max="15" placeholder="如 4.2" required>
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary">保存记录</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">成长曲线</h2>
+          <div class="chart-wrap">
+            <canvas id="growth-chart" aria-label="身高体重成长曲线"></canvas>
+          </div>
+          <p class="chart-hint" id="chart-hint">添加记录后即可查看曲线</p>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">历史记录</h2>
+          <ul id="growth-list" class="record-list"></ul>
+        </div>
+      </section>
+
+      <!-- 喂奶 -->
+      <section id="panel-feeding" class="panel" role="tabpanel" hidden>
+        <div class="stats-row">
+          <div class="stat-card">
+            <span class="stat-value" id="feeding-count">0</span>
+            <span class="stat-label">今日次数</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="feeding-total">0</span>
+            <span class="stat-label">今日总量 (ml)</span>
+          </div>
+        </div>
+
+        <div class="card form-card">
+          <h2 class="card-title">记录喂奶</h2>
+          <form id="feeding-form" class="form">
+            <label class="field">
+              <span>时间</span>
+              <input type="datetime-local" id="feeding-time" required>
+            </label>
+            <label class="field">
+              <span>方式</span>
+              <div class="radio-group">
+                <label class="radio-pill">
+                  <input type="radio" name="feeding-method" value="母乳" checked>
+                  <span>母乳</span>
+                </label>
+                <label class="radio-pill">
+                  <input type="radio" name="feeding-method" value="奶粉">
+                  <span>奶粉</span>
+                </label>
+                <label class="radio-pill">
+                  <input type="radio" name="feeding-method" value="混合">
+                  <span>混合</span>
+                </label>
+              </div>
+            </label>
+            <label class="field">
+              <span>奶量 (ml)</span>
+              <input type="number" id="feeding-amount" min="0" max="500" step="5" placeholder="如 120" required>
+            </label>
+            <button type="submit" class="btn btn-primary">添加记录</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">最近记录</h2>
+          <ul id="feeding-list" class="record-list"></ul>
+        </div>
+      </section>
+
+      <!-- 里程碑 -->
+      <section id="panel-milestones" class="panel" role="tabpanel" hidden>
+        <p class="panel-intro">记录宝宝每一个珍贵的小进步 ✨</p>
+        <ul id="milestone-list" class="milestone-list"></ul>
+      </section>
+
+      <!-- 心情日记 -->
+      <section id="panel-diary" class="panel" role="tabpanel" hidden>
+        <div class="view-toggle">
+          <button type="button" class="toggle-btn active" data-view="write">写日记</button>
+          <button type="button" class="toggle-btn" data-view="calendar">日历</button>
+        </div>
+
+        <div id="diary-write" class="diary-view">
+          <div class="card form-card">
+            <h2 class="card-title" id="diary-date-title">今日心情</h2>
+            <form id="diary-form" class="form">
+              <input type="hidden" id="diary-date">
+              <div class="field">
+                <span>今天的心情</span>
+                <div class="mood-picker" id="mood-picker">
+                  <button type="button" class="mood-btn" data-mood="😊" title="开心">😊</button>
+                  <button type="button" class="mood-btn" data-mood="🥰" title="幸福">🥰</button>
+                  <button type="button" class="mood-btn" data-mood="😴" title="困倦">😴</button>
+                  <button type="button" class="mood-btn" data-mood="😢" title="难过">😢</button>
+                  <button type="button" class="mood-btn" data-mood="😤" title="烦躁">😤</button>
+                  <button type="button" class="mood-btn" data-mood="🤔" title="思考">🤔</button>
+                  <button type="button" class="mood-btn" data-mood="😍" title="超爱">😍</button>
+                  <button type="button" class="mood-btn" data-mood="🌈" title="美好">🌈</button>
+                </div>
+                <input type="hidden" id="diary-mood" value="😊">
+              </div>
+              <label class="field">
+                <span>想说的话</span>
+                <textarea id="diary-text" rows="4" placeholder="记录今天和宝宝的小故事…"></textarea>
+              </label>
+              <div class="field">
+                <span>照片（可选）</span>
+                <div class="photo-upload">
+                  <input type="file" id="diary-photo" accept="image/*" hidden>
+                  <label for="diary-photo" class="photo-btn">📷 选择照片</label>
+                  <button type="button" class="photo-clear" id="diary-photo-clear" hidden>移除</button>
+                </div>
+                <div id="diary-photo-preview" class="photo-preview" hidden></div>
+              </div>
+              <button type="submit" class="btn btn-primary">保存日记</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="diary-calendar" class="diary-view" hidden>
+          <div class="card">
+            <div class="cal-header">
+              <button type="button" class="cal-nav" id="cal-prev" aria-label="上个月">‹</button>
+              <h2 class="cal-title" id="cal-title"></h2>
+              <button type="button" class="cal-nav" id="cal-next" aria-label="下个月">›</button>
+            </div>
+            <div class="cal-weekdays">
+              <span>日</span><span>一</span><span>二</span><span>三</span>
+              <span>四</span><span>五</span><span>六</span>
+            </div>
+            <div id="cal-grid" class="cal-grid"></div>
+          </div>
+          <div id="cal-detail" class="card cal-detail" hidden>
+            <h3 class="cal-detail-date" id="cal-detail-date"></h3>
+            <p class="cal-detail-mood" id="cal-detail-mood"></p>
+            <p class="cal-detail-text" id="cal-detail-text"></p>
+            <img id="cal-detail-photo" class="cal-detail-photo" alt="" hidden>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>数据保存在本设备 · 无需登录</p>
+    </footer>
+  </div>
+
+  <!-- 里程碑编辑弹窗 -->
+  <dialog id="milestone-dialog" class="dialog">
+    <form method="dialog" id="milestone-form" class="dialog-form">
+      <h3 id="milestone-dialog-title">记录里程碑</h3>
+      <input type="hidden" id="milestone-id">
+      <label class="field">
+        <span>达成日期</span>
+        <input type="date" id="milestone-date">
+      </label>
+      <label class="field">
+        <span>备注</span>
+        <textarea id="milestone-note" rows="3" placeholder="写下这一刻的小细节…"></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" id="milestone-cancel">取消</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+        <button type="button" class="btn btn-danger" id="milestone-unachieve" hidden>取消达成</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
