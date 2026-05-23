@@ -12,11 +12,80 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
+  <p id="global-auth-error" class="global-auth-error" hidden role="alert"></p>
+
+  <!-- 登录 / 注册 -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-header">
+        <span class="auth-deco">☁️</span>
+        <h1 class="auth-title">岳岳的成长记录本</h1>
+        <p class="auth-subtitle">家庭账号登录 · 云端加密同步</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" id="auth-tab-login">登录</button>
+        <button type="button" class="auth-tab" id="auth-tab-register">注册</button>
+      </div>
+
+      <p id="auth-unlock-hint" class="auth-hint" hidden>欢迎回来，请输入密码解锁加密数据</p>
+      <p id="auth-status" class="auth-status" aria-live="polite"></p>
+      <p id="auth-error" class="auth-error" hidden></p>
+
+      <form id="form-login" class="auth-form">
+        <label class="field">
+          <span>邮箱</span>
+          <input type="email" id="login-email" autocomplete="email" required placeholder="家庭共用邮箱">
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input type="password" id="login-password" autocomplete="current-password" required placeholder="至少 8 位">
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">登录</button>
+        <p class="auth-foot"><a href="#" id="link-forgot">忘记密码？</a></p>
+      </form>
+
+      <form id="form-register" class="auth-form" hidden>
+        <label class="field">
+          <span>邮箱（家人共用此账号）</span>
+          <input type="email" id="register-email" autocomplete="email" required placeholder="name@example.com">
+        </label>
+        <label class="field">
+          <span>宝宝昵称（可选）</span>
+          <input type="text" id="register-baby-name" placeholder="如：岳岳">
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input type="password" id="register-password" autocomplete="new-password" required minlength="8" placeholder="至少 8 位，请妥善保管">
+        </label>
+        <label class="field">
+          <span>确认密码</span>
+          <input type="password" id="register-password-confirm" autocomplete="new-password" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">注册家庭账号</button>
+        <p class="auth-foot muted">密码用于加密数据，忘记密码将无法解密旧记录</p>
+      </form>
+
+      <form id="form-reset" class="auth-form" hidden>
+        <label class="field">
+          <span>注册邮箱</span>
+          <input type="email" id="reset-email" autocomplete="email" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">发送重置邮件</button>
+        <p class="auth-foot"><a href="#" id="link-back-login">返回登录</a></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="app-main" class="app" hidden>
     <header class="header">
-      <div class="header-deco">☁️</div>
+      <div class="header-top">
+        <div class="header-deco">☁️</div>
+        <button type="button" class="btn-logout" id="btn-logout" title="退出登录">退出</button>
+      </div>
       <h1 class="title">岳岳的成长记录本</h1>
       <p class="subtitle">0〜6个月 · 每一天都值得珍藏</p>
+      <p class="user-bar"><span id="user-email"></span> · <span id="sync-status" class="sync-status"></span></p>
     </header>
 
     <nav class="tabs" role="tablist">
@@ -201,7 +270,8 @@
     </main>
 
     <footer class="footer">
-      <p>数据保存在本设备 · 无需登录</p>
+      <p id="footer-cloud">☁️ 数据加密保存在 Supabase 云端 · 家人共用账号登录即可同步</p>
+      <p id="footer-sync-hint" class="footer-hint"></p>
     </footer>
   </div>
 
@@ -227,6 +297,10 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js?v=7"></script>
+  <script src="crypto.js?v=7"></script>
+  <script src="store.js?v=7"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

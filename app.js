@@ -1,7 +1,13 @@
 (function () {
   'use strict';
 
-  const STORAGE_KEY = 'babyGrowthBook_v1';
+  function loadData() {
+    return window.BabyBookStore.getCache();
+  }
+
+  function saveData(data) {
+    window.BabyBookStore.saveData(data);
+  }
 
   const PRESET_MILESTONES = [
     { id: 'smile', name: '第一次微笑', emoji: '😊', ageHint: '约 6-8 周' },
@@ -23,18 +29,6 @@
   let calMonth = new Date().getMonth();
   let selectedCalDate = null;
   let pendingPhoto = null;
-
-  function loadData() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (_) {}
-    return { growth: [], feeding: [], milestones: {}, diary: {} };
-  }
-
-  function saveData(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }
 
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -146,9 +140,18 @@
   function renderGrowthChart() {
     const canvas = document.getElementById('growth-chart');
     const hint = document.getElementById('chart-hint');
+    if (!canvas || !hint) return;
+
     const records = [...loadData().growth].sort((a, b) => a.date.localeCompare(b.date));
 
+    if (typeof window.Chart === 'undefined') {
+      hint.textContent = '图表库未加载，请刷新页面或检查网络';
+      hint.classList.remove('hidden');
+      return;
+    }
+
     if (records.length === 0) {
+      hint.textContent = '添加记录后即可查看曲线';
       hint.classList.remove('hidden');
       if (growthChart) {
         growthChart.destroy();
@@ -562,17 +565,57 @@
   }
 
   /* ——— Init ——— */
-  function init() {
-    initTabs();
-    initGrowth();
-    initFeeding();
-    initMilestones();
-    initDiary();
+  let appStarted = false;
+  const bound = { tabs: false, growth: false, feeding: false, milestones: false, diary: false };
+
+  function refreshAll() {
+    renderGrowthList();
+    renderGrowthChart();
+    renderFeeding();
+    renderMilestones();
+    renderDiaryWrite();
+  }
+
+  function setupApp() {
+    if (!bound.tabs) {
+      bound.tabs = true;
+      initTabs();
+    }
+    if (!bound.growth) {
+      bound.growth = true;
+      initGrowth();
+    }
+    if (!bound.feeding) {
+      bound.feeding = true;
+      initFeeding();
+    }
+    if (!bound.milestones) {
+      bound.milestones = true;
+      initMilestones();
+    }
+    if (!bound.diary) {
+      bound.diary = true;
+      initDiary();
+    }
+  }
+
+  window.BabyBookApp = {
+    async start() {
+      setupApp();
+      refreshAll();
+      appStarted = true;
+    },
+  };
+
+  async function bootstrap() {
+    if (!window.BabyBookStore) return;
+    const ready = await window.BabyBookStore.init();
+    if (ready) await window.BabyBookApp.start();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', bootstrap);
   } else {
-    init();
+    bootstrap();
   }
 })();
