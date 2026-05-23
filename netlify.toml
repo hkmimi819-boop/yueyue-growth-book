@@ -1,0 +1,10 @@
+# Netlify 部署配置
+# 在 Netlify 控制台 → Site configuration → Environment variables 添加：
+#   SUPABASE_URL、SUPABASE_ANON_KEY
+
+[build]
+  command = "node scripts/write-config.js"
+  publish = "."
+
+[build.environment]
+  NODE_VERSION = "20"
