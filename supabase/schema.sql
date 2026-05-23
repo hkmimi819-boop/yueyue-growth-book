@@ -6,6 +6,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   encryption_salt text not null,
   baby_name text default '宝宝',
+  baby_gender text default 'boy' check (baby_gender in ('boy', 'girl')),
   created_at timestamptz not null default now()
 );
 

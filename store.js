@@ -14,7 +14,18 @@
   let currentUser = null;
   let persistTimer = null;
   let saving = false;
+  let userProfile = { baby_name: '宝宝', baby_gender: 'boy' };
   const REQUEST_TIMEOUT_MS = 20000;
+
+  function applyUserProfile(profile) {
+    userProfile = {
+      baby_name: global.BabyBookTheme?.normalizeName(profile?.baby_name) || '宝宝',
+      baby_gender: profile?.baby_gender === 'girl' ? 'girl' : 'boy',
+    };
+    if (global.BabyBookTheme) {
+      global.BabyBookTheme.apply(userProfile.baby_gender, userProfile.baby_name);
+    }
+  }
 
   function withTimeout(promise, label) {
     return Promise.race([
@@ -180,10 +191,13 @@
     return null;
   }
 
-  async function ensureProfile(salt, babyName) {
+  async function ensureProfile(salt, babyName, babyGender) {
+    const name = global.BabyBookTheme?.normalizeName(babyName) || '宝宝';
+    const gender = babyGender === 'girl' ? 'girl' : 'boy';
+
     const { data: existing, error: readErr } = await supabase
       .from('profiles')
-      .select('encryption_salt, baby_name')
+      .select('encryption_salt, baby_name, baby_gender')
       .eq('id', currentUser.id)
       .maybeSingle();
 
@@ -197,18 +211,19 @@
     const { error: insertErr } = await supabase.from('profiles').insert({
       id: currentUser.id,
       encryption_salt: salt,
-      baby_name: babyName || '宝宝',
+      baby_name: name,
+      baby_gender: gender,
     });
 
     if (insertErr) throw insertErr;
     cryptoKey.salt = salt;
-    return { encryption_salt: salt, baby_name: babyName || '宝宝' };
+    return { encryption_salt: salt, baby_name: name, baby_gender: gender };
   }
 
   async function fetchProfileSalt() {
     const { data, error } = await supabase
       .from('profiles')
-      .select('encryption_salt, baby_name')
+      .select('encryption_salt, baby_name, baby_gender')
       .eq('id', currentUser.id)
       .maybeSingle();
 
@@ -216,21 +231,24 @@
 
     if (!data) {
       const salt = BabyBookCrypto.randomSalt();
-      return ensureProfile(salt, '宝宝');
+      return ensureProfile(salt, '宝宝', 'boy');
     }
 
     cryptoKey.salt = data.encryption_salt;
+    if (!data.baby_gender) data.baby_gender = 'boy';
     return data;
   }
 
-  async function onAuthSuccess(password, isNewUser, babyName) {
+  async function onAuthSuccess(password, isNewUser, babyName, babyGender) {
     cryptoKey.password = password;
+    let profile;
     if (isNewUser) {
       const salt = BabyBookCrypto.randomSalt();
-      await withTimeout(ensureProfile(salt, babyName), '创建配置');
+      profile = await withTimeout(ensureProfile(salt, babyName, babyGender), '创建配置');
     } else {
-      await withTimeout(fetchProfileSalt(), '加载配置');
+      profile = await withTimeout(fetchProfileSalt(), '加载配置');
     }
+    applyUserProfile(profile);
 
     let cloudData;
     try {
@@ -329,14 +347,15 @@
         <p class="auth-error" style="display:block">${issue}</p>
         <p style="margin-top:12px;font-size:0.9rem;color:var(--text-light)">排查步骤：</p>
         <ol style="font-size:0.85rem;color:var(--text-light);padding-left:1.2rem;line-height:1.6">
-          <li>浏览器打开 <a href="/config.js?v=3" target="_blank">/config.js</a>，应能看到你的 Project URL</li>
-          <li>终端执行 <code>cd baby-growth-book && python3 -m http.server 8080</code></li>
-          <li>访问 <code>http://localhost:8080</code> 后按 Cmd+Shift+R 刷新</li>
+          <li><strong>Netlify</strong>：Site configuration → Environment variables 添加 <code>SUPABASE_URL</code>、<code>SUPABASE_ANON_KEY</code>，然后重新 Deploy</li>
+          <li><strong>本地</strong>：复制 <code>config.example.js</code> 为 <code>config.js</code> 并填入密钥</li>
+          <li>部署后打开 <a href="/config.js" target="_blank">/config.js</a>，应能看到 Project URL（不是空字符串）</li>
         </ol>
+        <p style="font-size:0.85rem;margin-top:8px">详见 <strong>NETLIFY_SETUP.md</strong></p>
       </div>`;
   }
 
-  async function signUp(email, password, babyName) {
+  async function signUp(email, password, babyName, babyGender) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
     if (!data.user) throw new Error('注册失败');
@@ -344,7 +363,7 @@
       throw new Error('注册成功！请查收邮件完成验证后再登录（或在 Supabase 关闭邮件确认）');
     }
     currentUser = data.user;
-    await onAuthSuccess(password, true, babyName);
+    await onAuthSuccess(password, true, babyName, babyGender);
   }
 
   async function signIn(email, password) {
@@ -373,6 +392,10 @@
     currentUser = null;
     cryptoKey = { password: null, salt: null };
     cache = EMPTY_DATA();
+    userProfile = { baby_name: '宝宝', baby_gender: 'boy' };
+    if (global.BabyBookTheme) {
+      global.BabyBookTheme.apply('boy', '宝宝');
+    }
     showAuth();
   }
 
@@ -432,8 +455,33 @@
       clearError();
     }
 
-    tabLogin.addEventListener('click', () => switchAuthTab('login'));
-    tabRegister.addEventListener('click', () => switchAuthTab('register'));
+    const registerNameInput = document.getElementById('register-baby-name');
+    const genderInputs = document.querySelectorAll('input[name="register-gender"]');
+
+    function getRegisterPreview() {
+      const name = registerNameInput?.value.trim() || '宝宝';
+      const gender =
+        document.querySelector('input[name="register-gender"]:checked')?.value || 'boy';
+      return { name, gender };
+    }
+
+    function updateRegisterPreview() {
+      if (!global.BabyBookTheme || formRegister.hidden) return;
+      const { name, gender } = getRegisterPreview();
+      global.BabyBookTheme.previewRegister(name, gender);
+    }
+
+    tabLogin.addEventListener('click', () => {
+      switchAuthTab('login');
+      if (global.BabyBookTheme) global.BabyBookTheme.applyTheme('boy');
+    });
+    tabRegister.addEventListener('click', () => {
+      switchAuthTab('register');
+      updateRegisterPreview();
+    });
+
+    registerNameInput?.addEventListener('input', updateRegisterPreview);
+    genderInputs.forEach((input) => input.addEventListener('change', updateRegisterPreview));
 
     linkForgot?.addEventListener('click', (e) => {
       e.preventDefault();
@@ -491,6 +539,13 @@
       const email = document.getElementById('register-email').value.trim();
       const password = document.getElementById('register-password').value;
       const confirm = document.getElementById('register-password-confirm').value;
+      const babyName = document.getElementById('register-baby-name').value.trim();
+      const babyGender =
+        document.querySelector('input[name="register-gender"]:checked')?.value || 'boy';
+      if (!babyName) {
+        setError('请填写宝宝昵称');
+        return;
+      }
       if (password.length < 8) {
         setError('密码至少 8 位');
         return;
@@ -502,7 +557,7 @@
       const btn = formRegister.querySelector('button[type="submit"]');
       btn.disabled = true;
       try {
-        await signUp(email, password, document.getElementById('register-baby-name').value.trim());
+        await signUp(email, password, babyName, babyGender);
         await finishLogin();
       } catch (err) {
         setError(formatAuthError(err));
@@ -542,6 +597,11 @@
 
     bindAuthUI();
 
+    if (global.BabyBookTheme) {
+      global.BabyBookTheme.applyTheme('boy');
+      global.BabyBookTheme.applyBranding('宝宝');
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       const savedPwd = sessionStorage.getItem(SESSION_PWD_KEY);
@@ -578,6 +638,7 @@
     saveData,
     persistNow,
     getUser,
+    getProfile: () => ({ ...userProfile }),
     isLoggedIn,
     signOut,
     showApp,

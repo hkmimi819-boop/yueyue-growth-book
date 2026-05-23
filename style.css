@@ -11,6 +11,9 @@
   --text-light: #7a8f9e;
   --border: #dceaf2;
   --shadow: 0 4px 20px rgba(74, 144, 200, 0.12);
+  --btn-shadow: 0 4px 14px rgba(74, 144, 200, 0.35);
+  --chart-height: #6eb5e8;
+  --chart-weight: #5eb8d4;
   --radius: 16px;
   --radius-sm: 10px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -321,7 +324,7 @@ textarea {
 .btn-primary {
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   color: white;
-  box-shadow: 0 4px 14px rgba(74, 144, 200, 0.35);
+  box-shadow: var(--btn-shadow);
 }
 
 .btn-ghost {
@@ -873,6 +876,49 @@ textarea {
   background: var(--primary-light);
   color: var(--primary-dark);
   font-weight: 600;
+}
+
+.gender-group {
+  display: flex;
+  gap: 10px;
+}
+
+.gender-pill {
+  flex: 1;
+}
+
+.gender-pill input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.gender-pill span {
+  display: block;
+  text-align: center;
+  padding: 12px 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: var(--bg);
+  transition: all 0.2s;
+}
+
+.gender-pill input:checked + span {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
+.gender-pill.boy span::before {
+  content: '👦 ';
+}
+
+.gender-pill.girl span::before {
+  content: '👧 ';
 }
 
 .auth-form .field {

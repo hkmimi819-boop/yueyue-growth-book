@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#f4f9fc">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>岳岳的成长记录本</title>
+  <title>宝宝成长记录本</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
@@ -19,8 +19,8 @@
     <div class="auth-card">
       <div class="auth-header">
         <span class="auth-deco">☁️</span>
-        <h1 class="auth-title">岳岳的成长记录本</h1>
-        <p class="auth-subtitle">家庭账号登录 · 云端加密同步</p>
+        <h1 class="auth-title" data-book-title>宝宝成长记录本</h1>
+        <p class="auth-subtitle">记录宝宝每一天的珍贵瞬间</p>
       </div>
 
       <div class="auth-tabs">
@@ -51,9 +51,22 @@
           <input type="email" id="register-email" autocomplete="email" required placeholder="name@example.com">
         </label>
         <label class="field">
-          <span>宝宝昵称（可选）</span>
-          <input type="text" id="register-baby-name" placeholder="如：岳岳">
+          <span>宝宝昵称</span>
+          <input type="text" id="register-baby-name" required maxlength="12" placeholder="如：小明">
         </label>
+        <div class="field">
+          <span>宝宝性别</span>
+          <div class="gender-group">
+            <label class="gender-pill boy">
+              <input type="radio" name="register-gender" value="boy" checked>
+              <span>男宝宝</span>
+            </label>
+            <label class="gender-pill girl">
+              <input type="radio" name="register-gender" value="girl">
+              <span>女宝宝</span>
+            </label>
+          </div>
+        </div>
         <label class="field">
           <span>密码</span>
           <input type="password" id="register-password" autocomplete="new-password" required minlength="8" placeholder="至少 8 位，请妥善保管">
@@ -83,8 +96,8 @@
         <div class="header-deco">☁️</div>
         <button type="button" class="btn-logout" id="btn-logout" title="退出登录">退出</button>
       </div>
-      <h1 class="title">岳岳的成长记录本</h1>
-      <p class="subtitle">0〜6个月 · 每一天都值得珍藏</p>
+      <h1 class="title" data-book-title>宝宝成长记录本</h1>
+      <p class="subtitle">记录宝宝每一天的珍贵瞬间</p>
       <p class="user-bar"><span id="user-email"></span> · <span id="sync-status" class="sync-status"></span></p>
     </header>
 
@@ -298,9 +311,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="config.js?v=7"></script>
-  <script src="crypto.js?v=7"></script>
-  <script src="store.js?v=7"></script>
-  <script src="app.js?v=7"></script>
+  <script src="config.js?v=9"></script>
+  <script src="theme.js?v=9"></script>
+  <script src="crypto.js?v=9"></script>
+  <script src="store.js?v=9"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

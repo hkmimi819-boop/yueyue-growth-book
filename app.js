@@ -168,6 +168,20 @@
 
     if (growthChart) growthChart.destroy();
 
+    const colors = window.BabyBookTheme?.getChartColors() || {
+      height: '#6eb5e8',
+      weight: '#5eb8d4',
+    };
+
+    const hexToRgba = (hex, a) => {
+      const h = hex.replace('#', '');
+      const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+      const r = (n >> 16) & 255;
+      const g = (n >> 8) & 255;
+      const b = n & 255;
+      return `rgba(${r},${g},${b},${a})`;
+    };
+
     growthChart = new Chart(canvas, {
       type: 'line',
       data: {
@@ -176,8 +190,8 @@
           {
             label: '身高 (cm)',
             data: records.map((r) => r.height),
-            borderColor: '#6eb5e8',
-            backgroundColor: 'rgba(110, 181, 232, 0.15)',
+            borderColor: colors.height,
+            backgroundColor: hexToRgba(colors.height, 0.15),
             tension: 0.35,
             fill: true,
             yAxisID: 'y',
@@ -185,8 +199,8 @@
           {
             label: '体重 (kg)',
             data: records.map((r) => r.weight),
-            borderColor: '#5eb8d4',
-            backgroundColor: 'rgba(94, 184, 212, 0.15)',
+            borderColor: colors.weight,
+            backgroundColor: hexToRgba(colors.weight, 0.15),
             tension: 0.35,
             fill: true,
             yAxisID: 'y1',
@@ -207,13 +221,13 @@
           y: {
             type: 'linear',
             position: 'left',
-            title: { display: true, text: 'cm', color: '#6eb5e8' },
-            grid: { color: 'rgba(110, 181, 232, 0.12)' },
+            title: { display: true, text: 'cm', color: colors.height },
+            grid: { color: hexToRgba(colors.height, 0.12) },
           },
           y1: {
             type: 'linear',
             position: 'right',
-            title: { display: true, text: 'kg', color: '#5eb8d4' },
+            title: { display: true, text: 'kg', color: colors.weight },
             grid: { drawOnChartArea: false },
           },
         },
