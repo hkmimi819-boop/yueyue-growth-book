@@ -355,7 +355,43 @@
       </div>`;
   }
 
-  async function signUp(email, password, babyName, babyGender) {
+  function normalizeInviteCode(raw) {
+    return String(raw || '').trim().toLowerCase();
+  }
+
+  async function assertInviteCodeValid(inviteCode) {
+    const code = normalizeInviteCode(inviteCode);
+    if (!code) {
+      throw new Error('请填写邀请码');
+    }
+    const { data, error } = await supabase.rpc('check_invite_code', { p_code: code });
+    if (error) {
+      console.error('check_invite_code', error);
+      throw new Error('邀请码校验失败，请稍后重试');
+    }
+    if (!data) {
+      throw new Error('邀请码无效或已被使用');
+    }
+    return code;
+  }
+
+  async function redeemInviteCode(inviteCode) {
+    const code = normalizeInviteCode(inviteCode);
+    const { data, error } = await supabase.rpc('redeem_invite_code', { p_code: code });
+    if (error) {
+      console.error('redeem_invite_code', error);
+      throw new Error('邀请码核销失败，请稍后重试');
+    }
+    if (!data) {
+      await supabase.auth.signOut();
+      currentUser = null;
+      throw new Error('邀请码已被使用，请更换邀请码后重新注册');
+    }
+  }
+
+  async function signUp(email, password, babyName, babyGender, inviteCode) {
+    const code = await assertInviteCodeValid(inviteCode);
+
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
     if (!data.user) throw new Error('注册失败');
@@ -363,6 +399,9 @@
       throw new Error('注册成功！请查收邮件完成验证后再登录（或在 Supabase 关闭邮件确认）');
     }
     currentUser = data.user;
+
+    await redeemInviteCode(code);
+
     await onAuthSuccess(password, true, babyName, babyGender);
   }
 
@@ -441,6 +480,9 @@
       }
       if (msg.includes('Cannot coerce') || err?.code === 'PGRST116') {
         return '云端数据异常，请刷新重试；若仍失败请联系技术支持。';
+      }
+      if (msg.includes('邀请码')) {
+        return msg;
       }
       return msg || '操作失败';
     }
@@ -539,9 +581,14 @@
       const email = document.getElementById('register-email').value.trim();
       const password = document.getElementById('register-password').value;
       const confirm = document.getElementById('register-password-confirm').value;
+      const inviteCode = document.getElementById('register-invite-code').value;
       const babyName = document.getElementById('register-baby-name').value.trim();
       const babyGender =
         document.querySelector('input[name="register-gender"]:checked')?.value || 'boy';
+      if (!normalizeInviteCode(inviteCode)) {
+        setError('请填写邀请码');
+        return;
+      }
       if (!babyName) {
         setError('请填写宝宝昵称');
         return;
@@ -557,7 +604,7 @@
       const btn = formRegister.querySelector('button[type="submit"]');
       btn.disabled = true;
       try {
-        await signUp(email, password, babyName, babyGender);
+        await signUp(email, password, babyName, babyGender, inviteCode);
         await finishLogin();
       } catch (err) {
         setError(formatAuthError(err));

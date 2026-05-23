@@ -921,6 +921,12 @@ textarea {
   content: '👧 ';
 }
 
+.input-invite {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+}
+
 .auth-form .field {
   margin-bottom: 14px;
 }
