@@ -114,6 +114,10 @@
         <span class="tab-icon">🍼</span>
         <span class="tab-label">喂奶</span>
       </button>
+      <button class="tab" data-tab="health" role="tab">
+        <span class="tab-icon">🩺</span>
+        <span class="tab-label">健康</span>
+      </button>
       <button class="tab" data-tab="milestones" role="tab">
         <span class="tab-icon">⭐</span>
         <span class="tab-label">里程碑</span>
@@ -144,6 +148,10 @@
                 <input type="number" id="growth-weight" step="0.01" min="2" max="15" placeholder="如 4.2" required>
               </label>
             </div>
+            <label class="field">
+              <span>头围 (cm)</span>
+              <input type="number" id="growth-head" step="0.1" min="30" max="55" placeholder="选填，如 36.0">
+            </label>
             <button type="submit" class="btn btn-primary">保存记录</button>
           </form>
         </div>
@@ -164,17 +172,24 @@
 
       <!-- 喂奶 -->
       <section id="panel-feeding" class="panel" role="tabpanel" hidden>
+        <div class="view-toggle feeding-view-toggle">
+          <button type="button" class="toggle-btn active" data-feeding-view="record">记一笔</button>
+          <button type="button" class="toggle-btn" data-feeding-view="day">按日</button>
+          <button type="button" class="toggle-btn" data-feeding-view="month">按月</button>
+        </div>
+
         <div class="stats-row">
           <div class="stat-card">
             <span class="stat-value" id="feeding-count">0</span>
-            <span class="stat-label">今日次数</span>
+            <span class="stat-label" id="feeding-count-label">今日次数</span>
           </div>
           <div class="stat-card">
             <span class="stat-value" id="feeding-total">0</span>
-            <span class="stat-label">今日总量 (ml)</span>
+            <span class="stat-label" id="feeding-total-label">今日总量 (ml)</span>
           </div>
         </div>
 
+        <div id="feeding-record-view" class="feeding-view">
         <div class="card form-card">
           <h2 class="card-title">记录喂奶</h2>
           <form id="feeding-form" class="form">
@@ -186,11 +201,11 @@
               <span>方式</span>
               <div class="radio-group">
                 <label class="radio-pill">
-                  <input type="radio" name="feeding-method" value="母乳" checked>
+                  <input type="radio" name="feeding-method" value="母乳">
                   <span>母乳</span>
                 </label>
                 <label class="radio-pill">
-                  <input type="radio" name="feeding-method" value="奶粉">
+                  <input type="radio" name="feeding-method" value="奶粉" checked>
                   <span>奶粉</span>
                 </label>
                 <label class="radio-pill">
@@ -210,6 +225,194 @@
         <div class="card">
           <h2 class="card-title">最近记录</h2>
           <ul id="feeding-list" class="record-list"></ul>
+        </div>
+        </div>
+
+        <div id="feeding-day-view" class="feeding-view" hidden>
+          <div class="card">
+            <label class="field">
+              <span>选择日期</span>
+              <input type="date" id="feeding-filter-date">
+            </label>
+            <ul id="feeding-day-list" class="record-list"></ul>
+          </div>
+        </div>
+
+        <div id="feeding-month-view" class="feeding-view" hidden>
+          <div class="card">
+            <div class="cal-header">
+              <button type="button" class="cal-nav" id="feeding-month-prev" aria-label="上个月">‹</button>
+              <h2 class="cal-title" id="feeding-month-title"></h2>
+              <button type="button" class="cal-nav" id="feeding-month-next" aria-label="下个月">›</button>
+            </div>
+            <p class="month-summary" id="feeding-month-summary"></p>
+            <div id="feeding-month-table" class="feeding-month-table"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 健康记录 -->
+      <section id="panel-health" class="panel" role="tabpanel" hidden>
+        <div class="view-toggle health-subnav">
+          <button type="button" class="toggle-btn active" data-health="jaundice">黄疸</button>
+          <button type="button" class="toggle-btn" data-health="stool">大便</button>
+          <button type="button" class="toggle-btn" data-health="temperature">体温</button>
+          <button type="button" class="toggle-btn" data-health="sleep">睡眠</button>
+          <button type="button" class="toggle-btn" data-health="medicine">用药</button>
+        </div>
+
+        <!-- 黄疸 -->
+        <div id="health-jaundice" class="health-section">
+          <div class="card form-card">
+            <h2 class="card-title">记录黄疸</h2>
+            <form id="jaundice-form" class="form">
+              <label class="field">
+                <span>日期</span>
+                <input type="date" id="jaundice-date" required>
+              </label>
+              <label class="field">
+                <span>黄疸数值 (mg/dL)</span>
+                <input type="number" id="jaundice-value" step="0.1" min="0" max="30" placeholder="如 8.5" required>
+              </label>
+              <button type="submit" class="btn btn-primary">保存</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2 class="card-title">黄疸趋势</h2>
+            <div class="chart-wrap chart-wrap-sm">
+              <canvas id="jaundice-chart" aria-label="黄疸数值趋势"></canvas>
+            </div>
+            <p class="chart-hint" id="jaundice-chart-hint">添加记录后即可查看曲线</p>
+          </div>
+          <div class="card">
+            <h2 class="card-title">历史记录</h2>
+            <ul id="jaundice-list" class="record-list"></ul>
+          </div>
+        </div>
+
+        <!-- 大便 -->
+        <div id="health-stool" class="health-section" hidden>
+          <div class="stats-row">
+            <div class="stat-card">
+              <span class="stat-value" id="stool-today-count">0</span>
+              <span class="stat-label">今日次数</span>
+            </div>
+          </div>
+          <div class="card form-card">
+            <h2 class="card-title">记录大便</h2>
+            <form id="stool-form" class="form">
+              <label class="field">
+                <span>时间</span>
+                <input type="datetime-local" id="stool-time" required>
+              </label>
+              <label class="field">
+                <span>颜色</span>
+                <div class="radio-group">
+                  <label class="radio-pill"><input type="radio" name="stool-color" value="黄色" checked><span>黄色</span></label>
+                  <label class="radio-pill"><input type="radio" name="stool-color" value="绿色"><span>绿色</span></label>
+                  <label class="radio-pill"><input type="radio" name="stool-color" value="棕色"><span>棕色</span></label>
+                  <label class="radio-pill"><input type="radio" name="stool-color" value="其他"><span>其他</span></label>
+                </div>
+              </label>
+              <label class="field">
+                <span>性状</span>
+                <div class="radio-group">
+                  <label class="radio-pill"><input type="radio" name="stool-texture" value="稀" checked><span>稀</span></label>
+                  <label class="radio-pill"><input type="radio" name="stool-texture" value="正常"><span>正常</span></label>
+                  <label class="radio-pill"><input type="radio" name="stool-texture" value="硬"><span>硬</span></label>
+                </div>
+              </label>
+              <button type="submit" class="btn btn-primary">保存</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2 class="card-title">历史记录</h2>
+            <ul id="stool-list" class="record-list"></ul>
+          </div>
+        </div>
+
+        <!-- 体温 -->
+        <div id="health-temperature" class="health-section" hidden>
+          <div class="card form-card">
+            <h2 class="card-title">记录体温</h2>
+            <form id="temperature-form" class="form">
+              <label class="field">
+                <span>时间</span>
+                <input type="datetime-local" id="temperature-time" required>
+              </label>
+              <label class="field">
+                <span>体温 (°C)</span>
+                <input type="number" id="temperature-value" step="0.1" min="35" max="42" placeholder="如 36.8" required>
+              </label>
+              <button type="submit" class="btn btn-primary">保存</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2 class="card-title">体温趋势</h2>
+            <p class="fever-hint">超过 37.5°C 将标红提醒</p>
+            <div class="chart-wrap chart-wrap-sm">
+              <canvas id="temperature-chart" aria-label="体温趋势"></canvas>
+            </div>
+            <p class="chart-hint" id="temperature-chart-hint">添加记录后即可查看曲线</p>
+          </div>
+          <div class="card">
+            <h2 class="card-title">历史记录</h2>
+            <ul id="temperature-list" class="record-list"></ul>
+          </div>
+        </div>
+
+        <!-- 睡眠 -->
+        <div id="health-sleep" class="health-section" hidden>
+          <div class="stats-row">
+            <div class="stat-card">
+              <span class="stat-value" id="sleep-today-total">0</span>
+              <span class="stat-label">今日总睡眠</span>
+            </div>
+          </div>
+          <div class="card form-card">
+            <h2 class="card-title">记录睡眠</h2>
+            <form id="sleep-form" class="form">
+              <label class="field">
+                <span>入睡时间</span>
+                <input type="datetime-local" id="sleep-start" required>
+              </label>
+              <label class="field">
+                <span>醒来时间</span>
+                <input type="datetime-local" id="sleep-end" required>
+              </label>
+              <button type="submit" class="btn btn-primary">保存</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2 class="card-title">历史记录</h2>
+            <ul id="sleep-list" class="record-list"></ul>
+          </div>
+        </div>
+
+        <!-- 用药 -->
+        <div id="health-medicine" class="health-section" hidden>
+          <div class="card form-card">
+            <h2 class="card-title">记录用药</h2>
+            <form id="medicine-form" class="form">
+              <label class="field">
+                <span>药品名称</span>
+                <input type="text" id="medicine-name" required maxlength="40" placeholder="如：维生素D">
+              </label>
+              <label class="field">
+                <span>剂量</span>
+                <input type="text" id="medicine-dose" required maxlength="30" placeholder="如：1滴">
+              </label>
+              <label class="field">
+                <span>时间</span>
+                <input type="datetime-local" id="medicine-time" required>
+              </label>
+              <button type="submit" class="btn btn-primary">保存</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2 class="card-title">历史记录</h2>
+            <ul id="medicine-list" class="record-list"></ul>
+          </div>
         </div>
       </section>
 
@@ -317,8 +520,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js?v=9"></script>
   <script src="theme.js?v=9"></script>
+  <script src="image.js?v=12"></script>
   <script src="crypto.js?v=9"></script>
-  <script src="store.js?v=10"></script>
-  <script src="app.js?v=10"></script>
+  <script src="store.js?v=13"></script>
+  <script src="health.js?v=13"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

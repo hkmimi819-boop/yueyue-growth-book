@@ -29,13 +29,27 @@
   let calMonth = new Date().getMonth();
   let selectedCalDate = null;
   let pendingPhoto = null;
+  let feedingView = 'record';
+  let feedingDayDate = '';
+  let feedingMonthYear = new Date().getFullYear();
+  let feedingMonthMonth = new Date().getMonth();
 
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
   function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function localDateFromIso(iso) {
+    if (!iso) return '';
+    if (/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso.slice(0, 10);
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
   function formatDateCN(dateStr) {
@@ -54,7 +68,33 @@
   }
 
   function isSameDay(iso, dayStr) {
-    return new Date(iso).toISOString().slice(0, 10) === dayStr;
+    return localDateFromIso(iso) === dayStr;
+  }
+
+  function feedingRecordHtml(f) {
+    return `
+      <li class="record-item">
+        <div class="record-main">
+          <div class="record-date">${formatDateTime(f.time)}</div>
+          <div class="record-meta">
+            <span class="record-badge">${f.method}</span>
+            ${f.amount} ml
+          </div>
+        </div>
+        <button type="button" class="record-delete" data-id="${f.id}" aria-label="删除">×</button>
+      </li>`;
+  }
+
+  function bindFeedingDelete(listEl) {
+    listEl.querySelectorAll('.record-delete').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!confirm('确定删除这条喂奶记录吗？')) return;
+        const d = loadData();
+        d.feeding = d.feeding.filter((x) => x.id !== btn.dataset.id);
+        saveData(d);
+        renderFeeding();
+      });
+    });
   }
 
   /* ——— Tabs ——— */
@@ -73,6 +113,7 @@
         });
         if (id === 'growth') renderGrowthChart();
         if (id === 'feeding') renderFeeding();
+        if (id === 'health' && window.BabyBookHealth) window.BabyBookHealth.refresh();
         if (id === 'milestones') renderMilestones();
         if (id === 'diary') renderDiaryWrite();
       });
@@ -88,12 +129,14 @@
     document.getElementById('growth-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const data = loadData();
+      const headRaw = document.getElementById('growth-head').value.trim();
       const entry = {
         id: uid(),
         date: document.getElementById('growth-date').value,
         height: parseFloat(document.getElementById('growth-height').value),
         weight: parseFloat(document.getElementById('growth-weight').value),
       };
+      if (headRaw) entry.head = parseFloat(headRaw);
       data.growth.push(entry);
       data.growth.sort((a, b) => a.date.localeCompare(b.date));
       saveData(data);
@@ -118,7 +161,7 @@
       <li class="record-item">
         <div class="record-main">
           <div class="record-date">${formatDateCN(r.date)}</div>
-          <div class="record-meta">身高 ${r.height} cm · 体重 ${r.weight} kg</div>
+          <div class="record-meta">身高 ${r.height} cm · 体重 ${r.weight} kg${r.head != null && !Number.isNaN(r.head) ? ` · 头围 ${r.head} cm` : ''}</div>
         </div>
         <button type="button" class="record-delete" data-id="${r.id}" aria-label="删除">×</button>
       </li>`
@@ -171,6 +214,7 @@
     const colors = window.BabyBookTheme?.getChartColors() || {
       height: '#6eb5e8',
       weight: '#5eb8d4',
+      head: '#8bc9a0',
     };
 
     const hexToRgba = (hex, a) => {
@@ -182,31 +226,66 @@
       return `rgba(${r},${g},${b},${a})`;
     };
 
+    const hasHead = records.some((r) => r.head != null && !Number.isNaN(r.head));
+    const datasets = [
+      {
+        label: '身高 (cm)',
+        data: records.map((r) => r.height),
+        borderColor: colors.height,
+        backgroundColor: hexToRgba(colors.height, 0.15),
+        tension: 0.35,
+        fill: true,
+        yAxisID: 'y',
+      },
+      {
+        label: '体重 (kg)',
+        data: records.map((r) => r.weight),
+        borderColor: colors.weight,
+        backgroundColor: hexToRgba(colors.weight, 0.15),
+        tension: 0.35,
+        fill: true,
+        yAxisID: 'y1',
+      },
+    ];
+
+    const scales = {
+      y: {
+        type: 'linear',
+        position: 'left',
+        title: { display: true, text: 'cm', color: colors.height },
+        grid: { color: hexToRgba(colors.height, 0.12) },
+      },
+      y1: {
+        type: 'linear',
+        position: 'right',
+        title: { display: true, text: 'kg', color: colors.weight },
+        grid: { drawOnChartArea: false },
+      },
+    };
+
+    if (hasHead) {
+      datasets.push({
+        label: '头围 (cm)',
+        data: records.map((r) => (r.head != null && !Number.isNaN(r.head) ? r.head : null)),
+        borderColor: colors.head,
+        backgroundColor: hexToRgba(colors.head, 0.12),
+        tension: 0.35,
+        fill: false,
+        yAxisID: 'y2',
+        spanGaps: true,
+      });
+      scales.y2 = {
+        type: 'linear',
+        position: 'right',
+        offset: true,
+        title: { display: true, text: '头围', color: colors.head },
+        grid: { drawOnChartArea: false },
+      };
+    }
+
     growthChart = new Chart(canvas, {
       type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: '身高 (cm)',
-            data: records.map((r) => r.height),
-            borderColor: colors.height,
-            backgroundColor: hexToRgba(colors.height, 0.15),
-            tension: 0.35,
-            fill: true,
-            yAxisID: 'y',
-          },
-          {
-            label: '体重 (kg)',
-            data: records.map((r) => r.weight),
-            borderColor: colors.weight,
-            backgroundColor: hexToRgba(colors.weight, 0.15),
-            tension: 0.35,
-            fill: true,
-            yAxisID: 'y1',
-          },
-        ],
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -217,30 +296,60 @@
             labels: { boxWidth: 12, padding: 14, font: { family: "'Noto Sans SC'" } },
           },
         },
-        scales: {
-          y: {
-            type: 'linear',
-            position: 'left',
-            title: { display: true, text: 'cm', color: colors.height },
-            grid: { color: hexToRgba(colors.height, 0.12) },
-          },
-          y1: {
-            type: 'linear',
-            position: 'right',
-            title: { display: true, text: 'kg', color: colors.weight },
-            grid: { drawOnChartArea: false },
-          },
-        },
+        scales,
       },
     });
   }
 
   /* ——— Feeding ——— */
+  function setFeedingView(view) {
+    feedingView = view;
+    document.querySelectorAll('#panel-feeding .feeding-view-toggle .toggle-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.feedingView === view);
+    });
+    document.getElementById('feeding-record-view').hidden = view !== 'record';
+    document.getElementById('feeding-day-view').hidden = view !== 'day';
+    document.getElementById('feeding-month-view').hidden = view !== 'month';
+    renderFeeding();
+  }
+
   function initFeeding() {
+    feedingDayDate = todayStr();
+    const filterDate = document.getElementById('feeding-filter-date');
+    filterDate.value = feedingDayDate;
+    filterDate.max = todayStr();
+
     const timeInput = document.getElementById('feeding-time');
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     timeInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    document.querySelectorAll('#panel-feeding .feeding-view-toggle .toggle-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setFeedingView(btn.dataset.feedingView));
+    });
+
+    filterDate.addEventListener('change', () => {
+      feedingDayDate = filterDate.value;
+      renderFeeding();
+    });
+
+    document.getElementById('feeding-month-prev').addEventListener('click', () => {
+      feedingMonthMonth--;
+      if (feedingMonthMonth < 0) {
+        feedingMonthMonth = 11;
+        feedingMonthYear--;
+      }
+      renderFeeding();
+    });
+
+    document.getElementById('feeding-month-next').addEventListener('click', () => {
+      feedingMonthMonth++;
+      if (feedingMonthMonth > 11) {
+        feedingMonthMonth = 0;
+        feedingMonthYear++;
+      }
+      renderFeeding();
+    });
 
     document.getElementById('feeding-form').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -261,42 +370,99 @@
     renderFeeding();
   }
 
+  function renderFeedingMonth(data) {
+    const today = todayStr();
+    const daysInMonth = new Date(feedingMonthYear, feedingMonthMonth + 1, 0).getDate();
+    const monthPad = String(feedingMonthMonth + 1).padStart(2, '0');
+
+    document.getElementById('feeding-month-title').textContent =
+      `${feedingMonthYear}年${feedingMonthMonth + 1}月`;
+
+    let monthCount = 0;
+    let monthTotal = 0;
+    const rows = [];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayStr = `${feedingMonthYear}-${monthPad}-${String(d).padStart(2, '0')}`;
+      const dayRecords = data.feeding.filter((f) => isSameDay(f.time, dayStr));
+      const count = dayRecords.length;
+      const total = dayRecords.reduce((s, f) => s + f.amount, 0);
+      monthCount += count;
+      monthTotal += total;
+
+      const isToday = dayStr === today;
+      const empty = count === 0;
+      rows.push(`
+        <button type="button" class="feeding-month-row ${isToday ? 'today' : ''} ${empty ? 'empty' : ''}"
+          data-date="${dayStr}" ${empty ? 'disabled' : ''}>
+          <span class="col-day">${d}日${isToday ? ' · 今天' : ''}</span>
+          <span class="col-meta">${count}次</span>
+          <span class="col-meta">${total} ml</span>
+        </button>`);
+    }
+
+    document.getElementById('feeding-month-summary').textContent =
+      `本月共 ${monthCount} 次，总量 ${monthTotal} ml`;
+
+    const table = document.getElementById('feeding-month-table');
+    table.innerHTML = rows.join('');
+
+    table.querySelectorAll('.feeding-month-row:not(.empty)').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        feedingDayDate = btn.dataset.date;
+        document.getElementById('feeding-filter-date').value = feedingDayDate;
+        setFeedingView('day');
+      });
+    });
+  }
+
   function renderFeeding() {
     const data = loadData();
     const today = todayStr();
-    const todayRecords = data.feeding.filter((f) => isSameDay(f.time, today));
+    let statsRecords;
+    let countLabel;
+    let totalLabel;
 
-    document.getElementById('feeding-count').textContent = todayRecords.length;
-    document.getElementById('feeding-total').textContent = todayRecords.reduce((s, f) => s + f.amount, 0);
+    if (feedingView === 'day') {
+      const day = feedingDayDate || today;
+      statsRecords = data.feeding.filter((f) => isSameDay(f.time, day));
+      const label = day === today ? '今日' : formatDateCN(day);
+      countLabel = `${label}次数`;
+      totalLabel = `${label}总量 (ml)`;
+    } else if (feedingView === 'month') {
+      const monthPad = String(feedingMonthMonth + 1).padStart(2, '0');
+      statsRecords = data.feeding.filter((f) => localDateFromIso(f.time).slice(0, 7) === `${feedingMonthYear}-${monthPad}`);
+      countLabel = '本月次数';
+      totalLabel = '本月总量 (ml)';
+    } else {
+      statsRecords = data.feeding.filter((f) => isSameDay(f.time, today));
+      countLabel = '今日次数';
+      totalLabel = '今日总量 (ml)';
+    }
 
-    const list = document.getElementById('feeding-list');
-    const recent = data.feeding.slice(0, 20);
+    document.getElementById('feeding-count').textContent = statsRecords.length;
+    document.getElementById('feeding-total').textContent = statsRecords.reduce((s, f) => s + f.amount, 0);
+    document.getElementById('feeding-count-label').textContent = countLabel;
+    document.getElementById('feeding-total-label').textContent = totalLabel;
 
-    list.innerHTML = recent
-      .map(
-        (f) => `
-      <li class="record-item">
-        <div class="record-main">
-          <div class="record-date">${formatDateTime(f.time)}</div>
-          <div class="record-meta">
-            <span class="record-badge">${f.method}</span>
-            ${f.amount} ml
-          </div>
-        </div>
-        <button type="button" class="record-delete" data-id="${f.id}" aria-label="删除">×</button>
-      </li>`
-      )
-      .join('');
-
-    list.querySelectorAll('.record-delete').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (!confirm('确定删除这条喂奶记录吗？')) return;
-        const d = loadData();
-        d.feeding = d.feeding.filter((x) => x.id !== btn.dataset.id);
-        saveData(d);
-        renderFeeding();
-      });
-    });
+    if (feedingView === 'record') {
+      const list = document.getElementById('feeding-list');
+      const recent = data.feeding.slice(0, 20);
+      list.innerHTML = recent.length ? recent.map(feedingRecordHtml).join('') : '<li class="empty-hint">暂无记录</li>';
+      bindFeedingDelete(list);
+    } else if (feedingView === 'day') {
+      const day = feedingDayDate || today;
+      const dayRecords = data.feeding
+        .filter((f) => isSameDay(f.time, day))
+        .sort((a, b) => new Date(b.time) - new Date(a.time));
+      const list = document.getElementById('feeding-day-list');
+      list.innerHTML = dayRecords.length
+        ? dayRecords.map(feedingRecordHtml).join('')
+        : '<li class="empty-hint">这一天还没有喂奶记录</li>';
+      bindFeedingDelete(list);
+    } else if (feedingView === 'month') {
+      renderFeedingMonth(data);
+    }
   }
 
   /* ——— Milestones ——— */
@@ -396,23 +562,24 @@
     });
     document.querySelector('.mood-btn[data-mood="😊"]').classList.add('selected');
 
-    document.getElementById('diary-photo').addEventListener('change', (e) => {
+    document.getElementById('diary-photo').addEventListener('change', async (e) => {
       const file = e.target.files[0];
+      const input = e.target;
       if (!file) return;
-      if (file.size > 2 * 1024 * 1024) {
-        alert('照片请小于 2MB，以便保存在本地');
-        e.target.value = '';
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        pendingPhoto = reader.result;
-        const preview = document.getElementById('diary-photo-preview');
-        preview.hidden = false;
+      const preview = document.getElementById('diary-photo-preview');
+      preview.hidden = false;
+      preview.innerHTML = '<p class="photo-loading">正在压缩照片…</p>';
+      try {
+        if (!window.BabyBookImage) throw new Error('图片模块未加载');
+        pendingPhoto = await window.BabyBookImage.compress(file);
         preview.innerHTML = `<img src="${pendingPhoto}" alt="预览">`;
         document.getElementById('diary-photo-clear').hidden = false;
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        pendingPhoto = null;
+        preview.hidden = true;
+        input.value = '';
+        alert(err.message || '照片处理失败，请换一张试试');
+      }
     });
 
     document.getElementById('diary-photo-clear').addEventListener('click', () => {
@@ -436,10 +603,12 @@
       renderCalendar();
     });
 
-    document.querySelectorAll('.toggle-btn').forEach((btn) => {
+    document.querySelectorAll('#panel-diary .view-toggle .toggle-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const view = btn.dataset.view;
-        document.querySelectorAll('.toggle-btn').forEach((b) => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('#panel-diary .view-toggle .toggle-btn').forEach((b) => {
+          b.classList.toggle('active', b === btn);
+        });
         document.getElementById('diary-write').hidden = view !== 'write';
         document.getElementById('diary-calendar').hidden = view !== 'calendar';
         if (view === 'calendar') renderCalendar();
@@ -580,12 +749,13 @@
 
   /* ——— Init ——— */
   let appStarted = false;
-  const bound = { tabs: false, growth: false, feeding: false, milestones: false, diary: false };
+  const bound = { tabs: false, growth: false, feeding: false, health: false, milestones: false, diary: false };
 
   function refreshAll() {
     renderGrowthList();
     renderGrowthChart();
     renderFeeding();
+    if (window.BabyBookHealth) window.BabyBookHealth.refresh();
     renderMilestones();
     renderDiaryWrite();
   }
@@ -602,6 +772,10 @@
     if (!bound.feeding) {
       bound.feeding = true;
       initFeeding();
+    }
+    if (!bound.health && window.BabyBookHealth) {
+      bound.health = true;
+      window.BabyBookHealth.init();
     }
     if (!bound.milestones) {
       bound.milestones = true;

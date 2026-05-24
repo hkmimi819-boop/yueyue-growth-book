@@ -6,7 +6,33 @@
 
   const LEGACY_KEY = 'babyGrowthBook_v1';
   const SESSION_PWD_KEY = 'babybook_session_unlock';
-  const EMPTY_DATA = () => ({ growth: [], feeding: [], milestones: {}, diary: {} });
+  const EMPTY_DATA = () => ({
+    growth: [],
+    feeding: [],
+    milestones: {},
+    diary: {},
+    jaundice: [],
+    stool: [],
+    temperature: [],
+    sleep: [],
+    medicine: [],
+  });
+
+  function normalizeData(data) {
+    const base = EMPTY_DATA();
+    if (!data || typeof data !== 'object') return base;
+    return {
+      growth: Array.isArray(data.growth) ? data.growth : [],
+      feeding: Array.isArray(data.feeding) ? data.feeding : [],
+      milestones: data.milestones && typeof data.milestones === 'object' ? data.milestones : {},
+      diary: data.diary && typeof data.diary === 'object' ? data.diary : {},
+      jaundice: Array.isArray(data.jaundice) ? data.jaundice : [],
+      stool: Array.isArray(data.stool) ? data.stool : [],
+      temperature: Array.isArray(data.temperature) ? data.temperature : [],
+      sleep: Array.isArray(data.sleep) ? data.sleep : [],
+      medicine: Array.isArray(data.medicine) ? data.medicine : [],
+    };
+  }
 
   let supabase = null;
   let cache = EMPTY_DATA();
@@ -40,11 +66,17 @@
   }
 
   function hasAnyData(data) {
+    const d = normalizeData(data);
     return (
-      (data.growth && data.growth.length > 0) ||
-      (data.feeding && data.feeding.length > 0) ||
-      Object.keys(data.milestones || {}).length > 0 ||
-      Object.keys(data.diary || {}).length > 0
+      d.growth.length > 0 ||
+      d.feeding.length > 0 ||
+      Object.keys(d.milestones).length > 0 ||
+      Object.keys(d.diary).length > 0 ||
+      d.jaundice.length > 0 ||
+      d.stool.length > 0 ||
+      d.temperature.length > 0 ||
+      d.sleep.length > 0 ||
+      d.medicine.length > 0
     );
   }
 
@@ -83,7 +115,7 @@
   }
 
   function setCache(data) {
-    cache = data;
+    cache = normalizeData(data);
   }
 
   function getUser() {
@@ -105,11 +137,12 @@
     const data = rows?.[0];
     if (!data || !data.encrypted_data) return EMPTY_DATA();
 
-    return BabyBookCrypto.decryptJson(
+    const raw = await BabyBookCrypto.decryptJson(
       data.encrypted_data,
       cryptoKey.password,
       cryptoKey.salt
     );
+    return normalizeData(raw);
   }
 
   async function saveToCloud() {
@@ -265,7 +298,7 @@
     let mergedLocal = false;
 
     if (legacy && cloudEmpty && hasAnyData(legacy)) {
-      cache = legacy;
+      cache = normalizeData(legacy);
       mergedLocal = true;
       try {
         await persistNow();
@@ -359,6 +392,16 @@
     return String(raw || '').trim().toLowerCase();
   }
 
+  function mapInviteRpcError(error, step) {
+    console.error(step, error);
+    const code = error?.code || '';
+    const msg = error?.message || '';
+    if (code === 'PGRST202' || msg.includes('Could not find the function')) {
+      return '邀请码功能未就绪：请在 Supabase 执行 invite-codes.sql 和 fix-invite-validation.sql';
+    }
+    return `${step}失败：${msg || '请稍后重试'}`;
+  }
+
   async function assertInviteCodeValid(inviteCode) {
     const code = normalizeInviteCode(inviteCode);
     if (!code) {
@@ -366,11 +409,12 @@
     }
     const { data, error } = await supabase.rpc('check_invite_code', { p_code: code });
     if (error) {
-      console.error('check_invite_code', error);
-      throw new Error('邀请码校验失败，请稍后重试');
+      throw new Error(mapInviteRpcError(error, '邀请码校验'));
     }
-    if (!data) {
-      throw new Error('邀请码无效或已被使用');
+    if (data !== true) {
+      throw new Error(
+        '邀请码无效或已被使用。请确认：① 已在 Supabase 生成邀请码 ② 该码 used=false ③ 输入无多余空格'
+      );
     }
     return code;
   }
@@ -379,13 +423,12 @@
     const code = normalizeInviteCode(inviteCode);
     const { data, error } = await supabase.rpc('redeem_invite_code', { p_code: code });
     if (error) {
-      console.error('redeem_invite_code', error);
-      throw new Error('邀请码核销失败，请稍后重试');
+      throw new Error(mapInviteRpcError(error, '邀请码核销'));
     }
-    if (!data) {
+    if (data !== true) {
       await supabase.auth.signOut();
       currentUser = null;
-      throw new Error('邀请码已被使用，请更换邀请码后重新注册');
+      throw new Error('邀请码已被他人使用，请换一个新码注册（若邮箱已占用请直接登录）');
     }
   }
 
@@ -393,10 +436,20 @@
     const code = await assertInviteCodeValid(inviteCode);
 
     const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    if (!data.user) throw new Error('注册失败');
+    if (error) {
+      const m = error.message || '';
+      if (/already|registered|exists/i.test(m)) {
+        throw new Error('该邮箱已注册，请直接登录');
+      }
+      throw new Error('账号注册失败：' + m);
+    }
+    if (!data.user) {
+      throw new Error('账号注册失败，请稍后重试');
+    }
     if (!data.session) {
-      throw new Error('注册成功！请查收邮件完成验证后再登录（或在 Supabase 关闭邮件确认）');
+      throw new Error(
+        '注册已提交，但需邮件验证后才能登录。请在 Supabase 关闭 Confirm email，或验证邮箱后再登录'
+      );
     }
     currentUser = data.user;
 
@@ -450,7 +503,7 @@
       showAuth();
       return;
     }
-    cache = data;
+    cache = normalizeData(data);
     schedulePersist();
   }
 

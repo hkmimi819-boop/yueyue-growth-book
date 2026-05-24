@@ -129,17 +129,25 @@ body {
 .tabs {
   display: flex;
   gap: 4px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   position: sticky;
   top: 0;
   z-index: 10;
   background: rgba(244, 249, 252, 0.92);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
-  flex: 1;
+  flex: 1 0 auto;
+  min-width: 3.4rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -159,7 +167,7 @@ body {
 }
 
 .tab-label {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 500;
 }
 
@@ -576,6 +584,122 @@ textarea {
 .toggle-btn.active {
   background: var(--primary-light);
   color: var(--primary-dark);
+}
+
+.feeding-month-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.feeding-month-row {
+  display: grid;
+  grid-template-columns: 1fr 3rem 4.5rem;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.feeding-month-row:hover {
+  background: var(--primary-light);
+}
+
+.feeding-month-row.today {
+  border: 1px solid var(--primary);
+}
+
+.feeding-month-row.empty {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.feeding-month-row .col-day {
+  font-weight: 500;
+}
+
+.feeding-month-row .col-meta {
+  text-align: right;
+  color: var(--text-light);
+  font-size: 0.85rem;
+}
+
+.month-summary {
+  font-size: 0.9rem;
+  color: var(--primary-dark);
+  text-align: center;
+  padding: 8px;
+  background: var(--primary-light);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+
+.photo-loading {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-light);
+  font-size: 0.9rem;
+}
+
+.feeding-view-toggle {
+  margin-bottom: 12px;
+}
+
+.empty-hint {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-light);
+  font-size: 0.9rem;
+  list-style: none;
+}
+
+.health-subnav {
+  margin-bottom: 12px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.health-subnav::-webkit-scrollbar {
+  display: none;
+}
+
+.health-subnav .toggle-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+}
+
+.chart-wrap-sm {
+  height: 220px;
+}
+
+.fever-hint {
+  font-size: 0.8rem;
+  color: #c45c5c;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.record-fever {
+  border-left: 3px solid #c45c5c;
+}
+
+.fever-value {
+  color: #c45c5c;
+  font-weight: 600;
 }
 
 .mood-picker {
