@@ -98,7 +98,10 @@
     <header class="header">
       <div class="header-top">
         <div class="header-deco">☁️</div>
-        <button type="button" class="btn-logout" id="btn-logout" title="退出登录">退出</button>
+        <div class="header-actions">
+          <button type="button" class="btn-export" id="btn-export-pdf" title="导出成长报告 PDF">📄 导出报告</button>
+          <button type="button" class="btn-logout" id="btn-logout" title="退出登录">退出</button>
+        </div>
       </div>
       <h1 class="title" data-book-title>宝宝成长记录本</h1>
       <p class="subtitle">记录宝宝每一天的珍贵瞬间</p>
@@ -495,6 +498,54 @@
     </footer>
   </div>
 
+  <!-- 导出 PDF -->
+  <dialog id="export-pdf-dialog" class="dialog export-dialog">
+    <div class="dialog-form">
+      <h3>导出成长报告 PDF</h3>
+      <p class="export-dialog-hint">从已同步的加密云端数据生成报告（纯前端，无需后端）</p>
+
+      <div class="field">
+        <span>快速选择时间范围</span>
+        <div class="export-range-btns">
+          <button type="button" class="range-btn export-range-btn" data-months="1">近1个月</button>
+          <button type="button" class="range-btn export-range-btn" data-months="3">近3个月</button>
+          <button type="button" class="range-btn export-range-btn" data-months="6">近6个月</button>
+          <button type="button" class="range-btn export-range-btn active" data-months="all">全部数据</button>
+        </div>
+      </div>
+
+      <div class="field-row export-date-row">
+        <label class="field">
+          <span>开始日期</span>
+          <input type="date" id="export-start-date" required>
+        </label>
+        <label class="field">
+          <span>结束日期</span>
+          <input type="date" id="export-end-date" required>
+        </label>
+      </div>
+
+      <div class="field">
+        <span>包含的数据模块</span>
+        <div class="export-module-checks">
+          <label class="check-pill"><input type="checkbox" name="export-module" value="growth" checked><span>身高体重头围</span></label>
+          <label class="check-pill"><input type="checkbox" name="export-module" value="temperature" checked><span>体温</span></label>
+          <label class="check-pill"><input type="checkbox" name="export-module" value="jaundice" checked><span>黄疸</span></label>
+          <label class="check-pill"><input type="checkbox" name="export-module" value="stool" checked><span>大便</span></label>
+          <label class="check-pill"><input type="checkbox" name="export-module" value="sleep" checked><span>睡眠</span></label>
+          <label class="check-pill"><input type="checkbox" name="export-module" value="medicine" checked><span>用药</span></label>
+        </div>
+      </div>
+
+      <p id="export-pdf-status" class="export-status" hidden role="status"></p>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" id="export-pdf-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="export-pdf-confirm">生成并下载 PDF</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- 里程碑编辑弹窗 -->
   <dialog id="milestone-dialog" class="dialog">
     <form method="dialog" id="milestone-form" class="dialog-form">
@@ -517,13 +568,17 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js?v=9"></script>
   <script src="theme.js?v=9"></script>
   <script src="image.js?v=12"></script>
   <script src="crypto.js?v=9"></script>
   <script src="store.js?v=13"></script>
+  <script src="fonts/pdf-font-vfs.js?v=14"></script>
   <script src="health.js?v=13"></script>
-  <script src="app.js?v=13"></script>
+  <script src="export-pdf.js?v=14"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

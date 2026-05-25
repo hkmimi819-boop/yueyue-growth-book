@@ -749,7 +749,15 @@
 
   /* ——— Init ——— */
   let appStarted = false;
-  const bound = { tabs: false, growth: false, feeding: false, health: false, milestones: false, diary: false };
+  const bound = {
+    tabs: false,
+    growth: false,
+    feeding: false,
+    health: false,
+    milestones: false,
+    diary: false,
+    export: false,
+  };
 
   function refreshAll() {
     renderGrowthList();
@@ -784,6 +792,10 @@
     if (!bound.diary) {
       bound.diary = true;
       initDiary();
+    }
+    if (!bound.export && window.BabyBookExport) {
+      bound.export = true;
+      window.BabyBookExport.init();
     }
   }
 
