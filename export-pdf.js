@@ -4,8 +4,11 @@
 (function (global) {
   'use strict';
 
-  const FONT_FILE = 'NotoSansCJKjp-Regular.ttf';
+  const FONT_FILE = 'NotoSansSC-Regular.ttf';
+  const FONT_URL = 'fonts/NotoSansSC-Regular.ttf';
   const FONT_NAME = 'NotoSansSC';
+  let fontBase64Cache = null;
+  let fontRegistered = false;
   const FEVER_C = 37.5;
   const JAUNDICE_HIGH = 12.9;
   const MARGIN = 14;
@@ -103,9 +106,46 @@
     return `${m}分钟`;
   }
 
-  function setupChineseFont(doc) {
+  function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    const chunk = 0x8000;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  async function loadFontBase64() {
+    if (fontBase64Cache) return fontBase64Cache;
+    const res = await fetch(FONT_URL);
+    if (!res.ok) throw new Error('中文字体加载失败，请检查网络后刷新重试');
+    fontBase64Cache = arrayBufferToBase64(await res.arrayBuffer());
+    return fontBase64Cache;
+  }
+
+  async function setupChineseFont(doc) {
     if (!global.jspdf?.jsPDF) throw new Error('PDF 库未加载，请刷新页面');
-    doc.addFont(FONT_FILE, FONT_NAME, 'normal');
+
+    if (!fontRegistered) {
+      const b64 = await loadFontBase64();
+      doc.addFileToVFS(FONT_FILE, b64);
+      doc.addFont(FONT_FILE, FONT_NAME, 'normal');
+      doc.setFont(FONT_NAME, 'normal');
+      try {
+        doc.getStringUnitWidth('测');
+      } catch (e) {
+        fontRegistered = false;
+        throw new Error('中文字体解析失败，请刷新页面重试');
+      }
+      fontRegistered = true;
+      return;
+    }
+
+    doc.setFont(FONT_NAME, 'normal');
+  }
+
+  function useChineseFont(doc) {
     doc.setFont(FONT_NAME, 'normal');
   }
 
@@ -228,14 +268,16 @@
           const val = parseFloat(row[1]);
           if (val > FEVER_C) {
             hook.cell.styles.textColor = [196, 92, 92];
-            hook.cell.styles.fontStyle = 'bold';
+            hook.cell.styles.font = FONT_NAME;
+            hook.cell.styles.fontStyle = 'normal';
           }
         }
         if (kind === 'jaundice') {
           const val = parseFloat(row[1]);
           if (val > JAUNDICE_HIGH) {
             hook.cell.styles.textColor = [196, 92, 92];
-            hook.cell.styles.fontStyle = 'bold';
+            hook.cell.styles.font = FONT_NAME;
+            hook.cell.styles.fontStyle = 'normal';
           }
         }
       },
@@ -244,7 +286,7 @@
 
   function addModulePage(doc, title, head, body, summary, hookKind) {
     doc.addPage();
-    setupChineseFont(doc);
+    useChineseFont(doc);
     doc.setFontSize(16);
     doc.setTextColor(74, 144, 200);
     doc.text(title, MARGIN, 22);
@@ -283,7 +325,7 @@
   }
 
   function addCoverPage(doc, opts) {
-    setupChineseFont(doc);
+    useChineseFont(doc);
     const profile = global.BabyBookStore.getProfile?.() || { baby_name: '宝宝' };
     const babyName = profile.baby_name || '宝宝';
 
@@ -335,6 +377,7 @@
     const { jsPDF } = global.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
+    await setupChineseFont(doc);
     addCoverPage(doc, { start, end, modules, counts, generatedAt });
 
     const pages = {
@@ -478,7 +521,7 @@
       }
 
       btnConfirm.disabled = true;
-      setExportStatus('正在生成 PDF，请稍候…');
+      setExportStatus('正在加载字体并生成 PDF，请稍候…');
 
       try {
         await generatePdf(start, end, modules);
