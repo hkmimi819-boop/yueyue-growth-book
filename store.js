@@ -122,6 +122,10 @@
     return currentUser;
   }
 
+  function getProfile() {
+    return { ...userProfile };
+  }
+
   function isLoggedIn() {
     return !!currentUser;
   }
@@ -733,19 +737,28 @@
     }
 
     function openSettings() {
-      if (!isLoggedIn()) {
-        alert('请先登录');
-        return;
+      try {
+        if (!isLoggedIn()) {
+          alert('请先登录');
+          return;
+        }
+        const user = getUser();
+        const profile = getProfile();
+        const emailEl = document.getElementById('settings-email');
+        const nameEl = document.getElementById('settings-baby-name');
+        if (emailEl) emailEl.textContent = user?.email || '—';
+        if (nameEl) nameEl.textContent = profile.baby_name || '宝宝';
+        form.reset();
+        setPwdStatus('');
+        if (typeof dialog.showModal === 'function') {
+          dialog.showModal();
+        } else {
+          dialog.setAttribute('open', '');
+        }
+      } catch (err) {
+        console.error('打开设置失败', err);
+        alert(err.message || '无法打开设置，请刷新页面重试');
       }
-      const user = getUser();
-      const profile = getProfile();
-      const emailEl = document.getElementById('settings-email');
-      const nameEl = document.getElementById('settings-baby-name');
-      if (emailEl) emailEl.textContent = user?.email || '—';
-      if (nameEl) nameEl.textContent = profile.baby_name || '宝宝';
-      form.reset();
-      setPwdStatus('');
-      dialog.showModal();
     }
 
     btnOpen.addEventListener('click', openSettings);
@@ -843,7 +856,7 @@
     saveData,
     persistNow,
     getUser,
-    getProfile: () => ({ ...userProfile }),
+    getProfile,
     isLoggedIn,
     signOut,
     changePassword,
