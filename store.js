@@ -497,6 +497,36 @@
     if (error) throw error;
   }
 
+  async function changePassword(currentPassword, newPassword) {
+    if (!currentUser?.email) {
+      throw new Error('请先登录');
+    }
+    if (!cryptoKey.salt) {
+      throw new Error('加密配置缺失，请退出后重新登录');
+    }
+
+    const { error: verifyErr } = await withTimeout(
+      supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password: currentPassword,
+      }),
+      '验证当前密码'
+    );
+    if (verifyErr) {
+      throw new Error('当前密码不正确');
+    }
+
+    const { error: updateErr } = await withTimeout(
+      supabase.auth.updateUser({ password: newPassword }),
+      '修改密码'
+    );
+    if (updateErr) throw updateErr;
+
+    cryptoKey.password = newPassword;
+    sessionStorage.setItem(SESSION_PWD_KEY, newPassword);
+    await withTimeout(persistNow(), '重新加密保存');
+  }
+
   function saveData(data) {
     if (!isLoggedIn() || !cryptoKey.password) {
       showGlobalError('请先登录后再保存，数据将同步到 Supabase 云端');
@@ -681,6 +711,81 @@
       if (!confirm('确定退出登录？')) return;
       await signOut();
     });
+
+    bindSettingsUI(formatAuthError);
+  }
+
+  function bindSettingsUI(formatAuthError) {
+    const dialog = document.getElementById('settings-dialog');
+    const btnOpen = document.getElementById('btn-settings');
+    const btnClose = document.getElementById('settings-close');
+    const form = document.getElementById('change-password-form');
+    const statusEl = document.getElementById('pwd-change-status');
+    const submitBtn = document.getElementById('pwd-change-submit');
+
+    if (!dialog || !btnOpen || !form) return;
+
+    function setPwdStatus(msg, isOk) {
+      if (!statusEl) return;
+      statusEl.hidden = !msg;
+      statusEl.textContent = msg || '';
+      statusEl.className = 'pwd-change-status' + (isOk ? ' pwd-change-ok' : msg ? ' pwd-change-err' : '');
+    }
+
+    function openSettings() {
+      if (!isLoggedIn()) {
+        alert('请先登录');
+        return;
+      }
+      const user = getUser();
+      const profile = getProfile();
+      const emailEl = document.getElementById('settings-email');
+      const nameEl = document.getElementById('settings-baby-name');
+      if (emailEl) emailEl.textContent = user?.email || '—';
+      if (nameEl) nameEl.textContent = profile.baby_name || '宝宝';
+      form.reset();
+      setPwdStatus('');
+      dialog.showModal();
+    }
+
+    btnOpen.addEventListener('click', openSettings);
+    btnClose?.addEventListener('click', () => dialog.close());
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const current = document.getElementById('pwd-current').value;
+      const next = document.getElementById('pwd-new').value;
+      const confirm = document.getElementById('pwd-confirm').value;
+
+      if (next.length < 8) {
+        setPwdStatus('新密码至少 8 位', false);
+        return;
+      }
+      if (next !== confirm) {
+        setPwdStatus('两次输入的新密码不一致', false);
+        return;
+      }
+      if (current === next) {
+        setPwdStatus('新密码不能与当前密码相同', false);
+        return;
+      }
+
+      submitBtn.disabled = true;
+      setPwdStatus('正在修改密码…', false);
+
+      try {
+        await changePassword(current, next);
+        setPwdStatus('密码修改成功', true);
+        form.reset();
+        showSyncStatus('密码已更新 · 数据已重新加密保存', 'ok');
+        setTimeout(() => dialog.close(), 1200);
+      } catch (err) {
+        console.error(err);
+        setPwdStatus(formatAuthError(err) || '修改失败，请重试', false);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
   }
 
   async function init() {
@@ -741,6 +846,7 @@
     getProfile: () => ({ ...userProfile }),
     isLoggedIn,
     signOut,
+    changePassword,
     showApp,
   };
 })(window);

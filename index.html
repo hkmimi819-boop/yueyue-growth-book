@@ -99,6 +99,7 @@
       <div class="header-top">
         <div class="header-deco">☁️</div>
         <div class="header-actions">
+          <button type="button" class="btn-settings" id="btn-settings" title="个人中心">设置</button>
           <button type="button" class="btn-export" id="btn-export-pdf" title="导出成长报告 PDF">📄 导出报告</button>
           <button type="button" class="btn-logout" id="btn-logout" title="退出登录">退出</button>
         </div>
@@ -497,6 +498,38 @@
     </footer>
   </div>
 
+  <!-- 个人中心 / 修改密码 -->
+  <dialog id="settings-dialog" class="dialog settings-dialog">
+    <div class="dialog-form">
+      <h3>个人中心</h3>
+      <div class="settings-profile">
+        <p><span class="settings-label">登录邮箱</span><span id="settings-email" class="settings-value"></span></p>
+        <p><span class="settings-label">宝宝昵称</span><span id="settings-baby-name" class="settings-value"></span></p>
+      </div>
+      <p class="settings-hint">密码用于加密云端数据，修改后将用新密码重新保存记录。</p>
+      <h4 class="settings-section-title">修改密码</h4>
+      <form id="change-password-form" class="form">
+        <label class="field">
+          <span>当前密码</span>
+          <input type="password" id="pwd-current" autocomplete="current-password" required>
+        </label>
+        <label class="field">
+          <span>新密码</span>
+          <input type="password" id="pwd-new" autocomplete="new-password" required minlength="8" placeholder="至少 8 位">
+        </label>
+        <label class="field">
+          <span>确认新密码</span>
+          <input type="password" id="pwd-confirm" autocomplete="new-password" required minlength="8">
+        </label>
+        <p id="pwd-change-status" class="pwd-change-status" hidden role="status"></p>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-ghost" id="settings-close">关闭</button>
+          <button type="submit" class="btn btn-primary" id="pwd-change-submit">确认修改</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
   <!-- 导出 PDF -->
   <dialog id="export-pdf-dialog" class="dialog export-dialog">
     <div class="dialog-form">
@@ -574,7 +607,7 @@
   <script src="theme.js?v=9"></script>
   <script src="image.js?v=12"></script>
   <script src="crypto.js?v=9"></script>
-  <script src="store.js?v=13"></script>
+  <script src="store.js?v=16"></script>
   <script src="health.js?v=13"></script>
   <script src="export-pdf.js?v=15"></script>
   <script src="app.js?v=14"></script>
