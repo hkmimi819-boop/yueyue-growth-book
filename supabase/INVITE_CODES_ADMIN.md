@@ -34,7 +34,9 @@ insert into public.invite_codes (code, note)
 values ('bb-gift-xiaoming', '送给小明一家');
 ```
 
-邀请码**不区分大小写**，系统会统一转成小写保存。
+邀请码**不区分大小写**（系统自动转成小写保存）。
+
+若注册提示邀请码无效，请在 SQL Editor 执行 **`fix-invite-validation.sql`** 修复大小写匹配。
 
 ---
 

@@ -1,22 +1,12 @@
--- 邀请码：注册必填，一码一次
--- 在 Supabase SQL Editor 中执行（新建项目可在 schema.sql 之后执行）
+-- 修复邀请码校验：大小写不敏感 + 统一存量邀请码为小写
+-- 在 Supabase SQL Editor 执行（invite-codes.sql 已执行过也可再执行本文件）
 
-create table if not exists public.invite_codes (
-  id uuid primary key default gen_random_uuid(),
-  code text unique not null,
-  used boolean not null default false,
-  used_by uuid references auth.users (id) on delete set null,
-  used_at timestamptz,
-  note text,
-  created_at timestamptz not null default now()
-);
+-- 1. 存量邀请码统一为小写（避免 BB-XXX 与 bb-xxx 不匹配）
+update public.invite_codes
+set code = lower(trim(code))
+where code is not null;
 
-create index if not exists invite_codes_code_idx on public.invite_codes (lower(code));
-create index if not exists invite_codes_used_idx on public.invite_codes (used) where used = false;
-
-alter table public.invite_codes enable row level security;
-
--- 写入时自动转小写（Table Editor 手工录入也不区分大小写）
+-- 2. 写入时自动转小写
 create or replace function public.invite_codes_normalize_code()
 returns trigger
 language plpgsql
@@ -32,8 +22,7 @@ create trigger invite_codes_normalize
 before insert or update of code on public.invite_codes
 for each row execute function public.invite_codes_normalize_code();
 
--- 禁止前端直接读写，仅通过下方函数校验/核销
-
+-- 3. 校验 / 核销：两边都 lower，避免大小写问题
 create or replace function public.check_invite_code(p_code text)
 returns boolean
 language sql
@@ -77,14 +66,6 @@ $$;
 
 revoke all on function public.check_invite_code(text) from public;
 revoke all on function public.redeem_invite_code(text) from public;
-
 grant execute on function public.check_invite_code(text) to anon;
 grant execute on function public.check_invite_code(text) to authenticated;
 grant execute on function public.redeem_invite_code(text) to authenticated;
-
--- 示例：生成 5 个邀请码（可改 note 备注）
--- insert into public.invite_codes (code, note)
--- select
---   'bb-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 8),
---   '批次-2026-05'
--- from generate_series(1, 5);
