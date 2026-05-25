@@ -1016,6 +1016,10 @@ textarea {
 }
 
 /* Footer */
+#footer-cloud {
+  display: none !important;
+}
+
 .footer {
   text-align: center;
   padding: 12px 16px;
