@@ -436,9 +436,7 @@
     }
   }
 
-  async function signUp(email, password, babyName, babyGender, inviteCode) {
-    const code = await assertInviteCodeValid(inviteCode);
-
+  async function signUp(email, password, babyName, babyGender) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       const m = error.message || '';
@@ -456,9 +454,6 @@
       );
     }
     currentUser = data.user;
-
-    await redeemInviteCode(code);
-
     await onAuthSuccess(password, true, babyName, babyGender);
   }
 
@@ -668,14 +663,9 @@
       const email = document.getElementById('register-email').value.trim();
       const password = document.getElementById('register-password').value;
       const confirm = document.getElementById('register-password-confirm').value;
-      const inviteCode = document.getElementById('register-invite-code').value;
       const babyName = document.getElementById('register-baby-name').value.trim();
       const babyGender =
         document.querySelector('input[name="register-gender"]:checked')?.value || 'boy';
-      if (!normalizeInviteCode(inviteCode)) {
-        setError('请填写邀请码');
-        return;
-      }
       if (!babyName) {
         setError('请填写宝宝昵称');
         return;
@@ -691,7 +681,7 @@
       const btn = formRegister.querySelector('button[type="submit"]');
       btn.disabled = true;
       try {
-        await signUp(email, password, babyName, babyGender, inviteCode);
+        await signUp(email, password, babyName, babyGender);
         await finishLogin();
       } catch (err) {
         setError(formatAuthError(err));
