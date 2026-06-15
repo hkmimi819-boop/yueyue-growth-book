@@ -41,7 +41,7 @@
   let persistTimer = null;
   let saving = false;
   let userProfile = { baby_name: '宝宝', baby_gender: 'boy' };
-  const REQUEST_TIMEOUT_MS = 20000;
+  const REQUEST_TIMEOUT_MS = 60000;
 
   function applyUserProfile(profile) {
     userProfile = {
@@ -53,13 +53,15 @@
     }
   }
 
-  function withTimeout(promise, label) {
+  function withTimeout(promise, label, ms) {
+    const limit = ms ?? REQUEST_TIMEOUT_MS;
+    let timer;
     return Promise.race([
-      promise,
+      promise.finally(() => clearTimeout(timer)),
       new Promise((_, reject) => {
-        setTimeout(
+        timer = setTimeout(
           () => reject(new Error(`${label || '请求'}超时，请检查网络后重试`)),
-          REQUEST_TIMEOUT_MS
+          limit
         );
       }),
     ]);
@@ -130,7 +132,7 @@
     return !!currentUser;
   }
 
-  async function loadFromCloud() {
+  async function fetchCloudEncrypted() {
     const { data: rows, error } = await supabase
       .from('family_records')
       .select('encrypted_data')
@@ -138,11 +140,16 @@
       .limit(2);
 
     if (error) throw error;
-    const data = rows?.[0];
-    if (!data || !data.encrypted_data) return EMPTY_DATA();
+    const row = rows?.[0];
+    return row?.encrypted_data || null;
+  }
+
+  async function loadFromCloud() {
+    const encrypted = await withTimeout(fetchCloudEncrypted(), '加载云端数据');
+    if (!encrypted) return EMPTY_DATA();
 
     const raw = await BabyBookCrypto.decryptJson(
-      data.encrypted_data,
+      encrypted,
       cryptoKey.password,
       cryptoKey.salt
     );
@@ -289,7 +296,7 @@
 
     let cloudData;
     try {
-      cloudData = await withTimeout(loadFromCloud(), '加载数据');
+      cloudData = await loadFromCloud();
     } catch (e) {
       if (e.message === 'INVALID_PAYLOAD' || e.name === 'OperationError') {
         throw new Error('DECRYPT_FAILED');
@@ -305,7 +312,7 @@
       cache = normalizeData(legacy);
       mergedLocal = true;
       try {
-        await persistNow();
+        await withTimeout(persistNow(), '合并历史数据');
       } catch (e) {
         console.warn('本地记录合并到云端失败', e);
       }
@@ -318,12 +325,17 @@
       global.__babyBookMergedLocal = true;
     }
 
-    try {
-      await persistNow();
-      global.__babyBookLastCloudSync = Date.now();
-    } catch (e) {
-      console.error('登录后首次云端同步失败', e);
-      throw new Error('无法写入云端：' + (e.message || '请检查网络'));
+    if (isNewUser || mergedLocal) {
+      try {
+        await withTimeout(persistNow(), '保存到云端');
+        global.__babyBookLastCloudSync = Date.now();
+      } catch (e) {
+        console.error('登录后云端保存失败', e);
+        if (isNewUser) {
+          throw new Error('无法写入云端：' + (e.message || '请检查网络'));
+        }
+        global.__babyBookCloudSyncDeferred = true;
+      }
     }
   }
 
@@ -349,6 +361,10 @@
     if (global.__babyBookMergedLocal) {
       showSyncStatus('已自动合并本设备历史记录', 'ok');
       delete global.__babyBookMergedLocal;
+    }
+    if (global.__babyBookCloudSyncDeferred) {
+      showSyncStatus('数据已解锁，云端同步稍后重试', 'err');
+      delete global.__babyBookCloudSyncDeferred;
     }
   }
 
@@ -641,7 +657,7 @@
       setLoading(true, '正在连接云端…');
       clearError();
       try {
-        await withTimeout(unlockOrSignIn(email, password), '解锁');
+        await unlockOrSignIn(email, password);
         setLoading(true, '正在加载记录本…');
         await finishLogin();
       } catch (err) {
@@ -649,6 +665,8 @@
         showAuth();
         if (err.message === 'DECRYPT_FAILED') {
           setError('密码错误或数据已损坏，请确认使用注册时的密码');
+        } else if (/超时/.test(err.message || '')) {
+          setError(err.message + '（数据较多时解密可能需要更久，请稍后再试）');
         } else {
           setError(formatAuthError(err));
         }
